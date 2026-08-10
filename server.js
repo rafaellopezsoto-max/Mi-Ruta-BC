@@ -13,6 +13,11 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
+// Si alguien entra a la direccion raiz, mandalo directo a la vista del pasajero
+app.get('/', (req, res) => {
+  res.redirect('/pasajero.html');
+});
+
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
