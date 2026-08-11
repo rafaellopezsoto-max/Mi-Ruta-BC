@@ -336,4 +336,52 @@ function renderBoardingPanel(list) {
   let options = currentStops;
   if (passengerStop) {
     const idx = currentStops.findIndex(s => s.id === passengerStop.id);
-    if (idx >= 0 && idx
+    if (idx >= 0 && idx < currentStops.length - 1) options = currentStops.slice(idx + 1);
+  }
+  if (!options.length) options = currentStops;
+  if (!destinationStop || !options.some(s => s.id === destinationStop.id)) {
+    destinationStop = options[options.length - 1] || options[0];
+  }
+
+  let etaText = 'Calculando…';
+  if (unit.position && destinationStop) {
+    const mins = etaMinutesTo(unit.position.lat, unit.position.lng, destinationStop.lat, destinationStop.lng);
+    etaText = `${mins} min a tu destino`;
+  }
+
+  list.className = '';
+  list.innerHTML = `
+    <div class="unit-card">
+      <p class="board-panel-title">Vas en la unidad ${unit.plate} · Chofer: ${unit.driver_name}</p>
+      <label class="field-label" for="destinationSelect">¿A dónde vas?</label>
+      <select id="destinationSelect">
+        ${options.map(s => `<option value="${s.id}" ${destinationStop.id === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
+      </select>
+      <div class="eta-badge large">${etaText}</div>
+      <button class="secondary-btn" id="exitBoardBtn">Ya bajé / cancelar</button>
+    </div>
+  `;
+
+  document.getElementById('destinationSelect').addEventListener('change', (e) => {
+    destinationStop = options.find(s => String(s.id) === e.target.value) || destinationStop;
+    renderUnitsList();
+  });
+  document.getElementById('exitBoardBtn').addEventListener('click', () => {
+    boardedUnitId = null;
+    destinationStop = null;
+    renderUnitsList();
+  });
+}
+
+socket.on('location_update', (data) => {
+  const unit = activeUnits.find(u => u.unit_id === data.unitId);
+  if (!unit) return; // no es de la ruta que estamos viendo
+  unit.position = { lat: data.lat, lng: data.lng };
+  placeUnitMarker(data.unitId, data.lat, data.lng);
+  renderUnitsList();
+});
+
+loadRoutes();
+</script>
+</body>
+</html>
