@@ -24,6 +24,7 @@ const io = new Server(server, { cors: { origin: '*' } });
 // Ultima posicion conocida de cada unidad, en memoria (rapido de leer).
 // La tabla `locations` en SQLite guarda el historial completo.
 const lastPosition = {}; // unitId -> { lat, lng, updatedAt }
+const lastKnownRoute = {}; // unitId -> routeId (la direccion que eligio el chofer en vivo)
 
 // ---------- Rutas y paradas ----------
 
@@ -116,17 +117,28 @@ app.get('/api/units/active', (req, res) => {
     )
     .all();
 
-  const withPosition = assignments.map((a) => ({
-    ...a,
-    position: lastPosition[a.unit_id] || null,
-  }));
+  const routesById = {};
+  db.prepare('SELECT id, name FROM routes').all().forEach(r => { routesById[r.id] = r.name; });
+
+  const withPosition = assignments.map((a) => {
+    const liveRouteId = lastKnownRoute[a.unit_id] || a.route_id;
+    return {
+      ...a,
+      route_id: liveRouteId,
+      route_name: routesById[liveRouteId] || a.route_name,
+      position: lastPosition[a.unit_id] || null,
+    };
+  });
   res.json(withPosition);
 });
 
 // El chofer (o su telefono) manda su posicion aqui cada pocos segundos.
+// Puede incluir routeId para indicar en cual sentido va ahora mismo
+// (util en rutas de ida y vuelta como un bulevar, donde la direccion
+// cambia varias veces al dia y no esta fija en la base de datos).
 app.post('/api/units/:unitId/location', (req, res) => {
   const unitId = Number(req.params.unitId);
-  const { lat, lng } = req.body;
+  const { lat, lng, routeId } = req.body;
   if (typeof lat !== 'number' || typeof lng !== 'number') {
     return res.status(400).json({ error: 'lat y lng son requeridos como numeros' });
   }
@@ -134,21 +146,30 @@ app.post('/api/units/:unitId/location', (req, res) => {
   lastPosition[unitId] = { lat, lng, updatedAt: new Date().toISOString() };
   db.prepare('INSERT INTO locations (unit_id, lat, lng) VALUES (?, ?, ?)').run(unitId, lat, lng);
 
-  // Encuentra la ruta de esta unidad para avisar solo a quien le interesa
-  const assignment = db
-    .prepare('SELECT route_id FROM assignments WHERE unit_id = ? AND active = 1')
-    .get(unitId);
+  // Si el chofer especifico una ruta/direccion, esa manda. Si no, usa la
+  // asignacion por defecto que tenga en la base de datos.
+  let activeRouteId = routeId ? Number(routeId) : null;
+  if (!activeRouteId) {
+    const assignment = db
+      .prepare('SELECT route_id FROM assignments WHERE unit_id = ? AND active = 1')
+      .get(unitId);
+    activeRouteId = assignment ? assignment.route_id : null;
+  } else {
+    // Recuerda la ultima direccion elegida por el chofer para esta unidad
+    lastKnownRoute[unitId] = activeRouteId;
+  }
 
-  if (assignment) {
-    io.to(`route-${assignment.route_id}`).emit('location_update', {
+  if (activeRouteId) {
+    io.to(`route-${activeRouteId}`).emit('location_update', {
       unitId,
       lat,
       lng,
+      routeId: activeRouteId,
       updatedAt: lastPosition[unitId].updatedAt,
     });
   }
 
-  res.json({ ok: true });
+  res.json({ ok: true, routeId: activeRouteId });
 });
 
 // ---------- WebSocket: el pasajero se suscribe a una ruta ----------
