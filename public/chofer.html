@@ -30,6 +30,26 @@
     font-size: 16px;
     text-align: center;
   }
+  select {
+    width: 100%;
+    max-width: 280px;
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    margin: 8px 0 0;
+    font-size: 15px;
+    text-align: center;
+    background: white;
+    color: #1c2b26;
+  }
+  label.field-label {
+    font-size: 12px;
+    color: #b7c2bc;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-top: 12px;
+    display: block;
+  }
   button {
     padding: 16px 32px;
     border-radius: 999px;
@@ -54,6 +74,10 @@
   <p>Deja esta pantalla abierta mientras conduces tu ruta</p>
 
   <input id="unitId" type="number" placeholder="ID de tu unidad (ej. 1)" />
+
+  <label class="field-label" for="routeSelect">¿Hacia dónde vas ahora?</label>
+  <select id="routeSelect"></select>
+
   <button id="toggleBtn">Iniciar transmisión</button>
 
   <div id="status"><span id="dot"></span>Detenido</div>
@@ -64,6 +88,14 @@ let watchId = null;
 const btn = document.getElementById('toggleBtn');
 const statusEl = document.getElementById('status');
 const dot = document.getElementById('dot');
+const routeSelect = document.getElementById('routeSelect');
+
+async function loadRoutes() {
+  const res = await fetch('/api/routes');
+  const routes = await res.json();
+  routeSelect.innerHTML = routes.map(r => `<option value="${r.id}">${r.name}</option>`).join('');
+}
+loadRoutes();
 
 btn.addEventListener('click', () => {
   if (watchId) {
@@ -105,10 +137,11 @@ function stop() {
 
 async function sendLocation(unitId, lat, lng) {
   try {
+    const routeId = routeSelect.value;
     await fetch(`/api/units/${unitId}/location`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lat, lng })
+      body: JSON.stringify({ lat, lng, routeId })
     });
     statusEl.innerHTML = `<span id="dot" class="live"></span>Última señal: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
   } catch (e) {
