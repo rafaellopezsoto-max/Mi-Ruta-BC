@@ -49,14 +49,15 @@
   }
   .unit-card {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: 8px;
     padding: 12px;
     border: 1px solid var(--line);
     border-radius: 10px;
     margin-bottom: 8px;
     background: white;
   }
+  .unit-card-top { display: flex; justify-content: space-between; align-items: center; }
   .unit-card .plate { font-weight: 700; }
   .unit-card .driver { font-size: 13px; color: #6b756f; }
   .eta-badge {
@@ -66,6 +67,40 @@
     padding: 4px 10px;
     border-radius: 999px;
     font-size: 13px;
+  }
+  .eta-badge.large {
+    display: block;
+    text-align: center;
+    font-size: 16px;
+    padding: 10px;
+    border-radius: 10px;
+    margin: 12px 0;
+  }
+  .board-btn {
+    width: 100%;
+    padding: 8px;
+    font-size: 13px;
+    background: white;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .secondary-btn {
+    width: 100%;
+    padding: 10px;
+    background: white;
+    color: #6b756f;
+    border: 1px solid var(--line);
+  }
+  .board-panel-title { font-weight: 700; margin: 0 0 8px; }
+  .field-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #6b756f;
+    display: block;
+    margin-bottom: 4px;
   }
   .empty { color: #6b756f; font-size: 14px; }
   .stop-banner {
@@ -129,6 +164,8 @@ let currentStops = [];
 let activeUnits = []; // metadata de las unidades activas de la ruta actual
 let passengerStop = null; // parada mas cercana al pasajero, detectada por GPS
 let passengerMarker = null;
+let boardedUnitId = null; // si el pasajero ya se subio, aqui va el id de la unidad
+let destinationStop = null; // destino elegido despues de abordar
 
 function distanceKm(lat1, lng1, lat2, lng2) {
   const R = 6371;
@@ -245,6 +282,12 @@ function etaMinutesTo(lat, lng, destLat, destLng, speedKmh = 18) {
 
 function renderUnitsList() {
   const list = document.getElementById('unitsList');
+
+  if (boardedUnitId) {
+    renderBoardingPanel(list);
+    return;
+  }
+
   if (!activeUnits.length) {
     list.className = 'empty';
     list.textContent = 'No hay unidades activas en esta ruta por ahora.';
@@ -259,24 +302,38 @@ function renderUnitsList() {
       etaText = `${mins} min a tu parada`;
     }
     return `<div class="unit-card" data-unit="${u.unit_id}">
-      <div>
-        <div class="plate">Unidad ${u.plate}</div>
-        <div class="driver">Chofer: ${u.driver_name}</div>
+      <div class="unit-card-top">
+        <div>
+          <div class="plate">Unidad ${u.plate}</div>
+          <div class="driver">Chofer: ${u.driver_name}</div>
+        </div>
+        <div class="eta-badge">${etaText}</div>
       </div>
-      <div class="eta-badge">${etaText}</div>
+      <button class="board-btn" onclick="boardUnit(${u.unit_id})">Ya me subí a esta unidad</button>
     </div>`;
   }).join('');
 }
 
-socket.on('location_update', (data) => {
-  const unit = activeUnits.find(u => u.unit_id === data.unitId);
-  if (!unit) return; // no es de la ruta que estamos viendo
-  unit.position = { lat: data.lat, lng: data.lng };
-  placeUnitMarker(data.unitId, data.lat, data.lng);
+function boardUnit(unitId) {
+  boardedUnitId = unitId;
+  destinationStop = null;
   renderUnitsList();
-});
+}
+window.boardUnit = boardUnit;
 
-loadRoutes();
-</script>
-</body>
-</html>
+function renderBoardingPanel(list) {
+  const unit = activeUnits.find(u => u.unit_id === boardedUnitId);
+  if (!unit) {
+    list.className = 'empty';
+    list.textContent = 'Esta unidad ya no está activa.';
+    boardedUnitId = null;
+    destinationStop = null;
+    return;
+  }
+
+  // Solo ofrece como destino las paradas mas adelante en el sentido del
+  // recorrido (despues de donde el pasajero se subio), no las de atras.
+  let options = currentStops;
+  if (passengerStop) {
+    const idx = currentStops.findIndex(s => s.id === passengerStop.id);
+    if (idx >= 0 && idx
