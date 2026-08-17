@@ -13,7 +13,10 @@ db.exec(`
 CREATE TABLE IF NOT EXISTS routes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
-  description TEXT
+  description TEXT,
+  color TEXT,
+  vehicle_label TEXT,
+  fares_json TEXT
 );
 
 CREATE TABLE IF NOT EXISTS stops (
@@ -23,7 +26,6 @@ CREATE TABLE IF NOT EXISTS stops (
   lng REAL NOT NULL
 );
 
--- Orden de paradas dentro de cada ruta
 CREATE TABLE IF NOT EXISTS route_stops (
   route_id INTEGER NOT NULL,
   stop_id INTEGER NOT NULL,
@@ -45,7 +47,6 @@ CREATE TABLE IF NOT EXISTS units (
   capacity INTEGER DEFAULT 30
 );
 
--- Que chofer y que unidad estan operando que ruta AHORA MISMO
 CREATE TABLE IF NOT EXISTS assignments (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   unit_id INTEGER NOT NULL,
@@ -58,7 +59,6 @@ CREATE TABLE IF NOT EXISTS assignments (
   FOREIGN KEY (route_id) REFERENCES routes(id)
 );
 
--- Historial de posiciones GPS (util para calcular velocidad promedio y ETA)
 CREATE TABLE IF NOT EXISTS locations (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   unit_id INTEGER NOT NULL,
@@ -67,18 +67,25 @@ CREATE TABLE IF NOT EXISTS locations (
   recorded_at TEXT DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (unit_id) REFERENCES units(id)
 );
+
+CREATE TABLE IF NOT EXISTS events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  event_type TEXT NOT NULL,
+  view TEXT,
+  route_id INTEGER,
+  unit_id INTEGER,
+  session_id TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
 `);
 
-// --- Sembrado automático desde datos.js ---
-// Todo lo que ves en pantalla sale de un solo lugar: datos.js.
-// Si la base de datos ya tiene rutas cargadas, no vuelve a insertar nada
-// (así puedes reiniciar el servidor sin duplicar información). Para
-// cargar datos.js de nuevo tras editarlo, borra transporte.db y reinicia.
 const routeCount = db.prepare('SELECT COUNT(*) AS c FROM routes').get().c;
 if (routeCount === 0) {
   const datos = require('./datos');
 
-  const insertRoute = db.prepare('INSERT INTO routes (name, description) VALUES (?, ?)');
+  const insertRoute = db.prepare(
+    'INSERT INTO routes (name, description, color, vehicle_label, fares_json) VALUES (?, ?, ?, ?, ?)'
+  );
   const insertStop = db.prepare('INSERT INTO stops (name, lat, lng) VALUES (?, ?, ?)');
   const linkStop = db.prepare('INSERT INTO route_stops (route_id, stop_id, sequence) VALUES (?, ?, ?)');
   const insertDriver = db.prepare('INSERT INTO drivers (name, phone) VALUES (?, ?)');
@@ -87,7 +94,13 @@ if (routeCount === 0) {
 
   const routeIdByName = {};
   for (const route of datos.routes || []) {
-    const routeId = insertRoute.run(route.name, route.description || '').lastInsertRowid;
+    const routeId = insertRoute.run(
+      route.name,
+      route.description || '',
+      route.color || '',
+      route.vehicleLabel || '',
+      JSON.stringify(route.fares || [])
+    ).lastInsertRowid;
     routeIdByName[route.name] = routeId;
     (route.stops || []).forEach((stop, i) => {
       const stopId = insertStop.run(stop.name, stop.lat, stop.lng).lastInsertRowid;
