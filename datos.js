@@ -1,68 +1,61 @@
-// datos.js
-//
-// ESTE ES EL ÚNICO ARCHIVO QUE NECESITAS EDITAR.
-// Reemplaza el contenido de ejemplo con las rutas, paradas, choferes y
-// unidades reales de tu ciudad. El servidor lee este archivo al arrancar
-// y llena la base de datos automáticamente.
-//
-// Cómo conseguir las coordenadas (lat, lng) de cada parada:
-//   1. Abre Google Maps.
-//   2. Mantén presionado el punto exacto de la parada.
-//   3. Aparecen las coordenadas arriba (ej. 32.5283, -117.0187) — cópialas.
-//
-// Después de editar este archivo, borra la base de datos vieja para que
-// se vuelva a crear con tus datos nuevos:
-//   rm transporte.db transporte.db-wal transporte.db-shm
-//   npm start
-
-// datos.js
-//
-// PILOTO: Blvd. Benito Juárez, Playas de Rosarito
-//
-// Es una sola calle, no una ruta con paradas fijas: el pasajero se puede
-// subir desde cualquier punto del bulevar. Por eso los "stops" de aquí no
-// son paradas oficiales, son puntos de referencia reales sobre la calle
-// (Oxxos, cruces conocidos) que sirven para calcular el ETA y para que el
-// pasajero elija su destino aproximado al subirse.
-//
-// Como el camión recorre el bulevar en ambos sentidos a lo largo del día,
-// se definen DOS rutas con los mismos puntos en orden inverso. El chofer
-// elige en cuál sentido va desde chofer.html (no está fijo en la base de
-// datos), así que las "assignments" de abajo solo definen quién maneja
-// qué unidad para efectos de mostrar el nombre del chofer — la dirección
-// real se decide en vivo.
-
 module.exports = {
 
   routes: [
     {
-      name: 'Blvd. Benito Juárez → Tijuana',
-      description: 'Sentido sur a norte: Rosarito Beach Hotel → Pabellón Rosarito',
+      name: 'Rosarito → Centro Tijuana',
+      description: 'Combi de pasajeros, Playas de Rosarito a Centro de Tijuana',
+      color: '#f6c945',
+      vehicleLabel: 'Blanco y Amarillo',
+      fares: [
+        { label: 'Bajas en Rosarito', price: 25 },
+        { label: 'Bajas en Tijuana', price: 30 },
+      ],
       stops: [
-        { name: 'Rosarito Beach Hotel',                          lat: 32.336164, lng: -117.054541 },
-        { name: 'Hotel Festival Plaza',                          lat: 32.337533, lng: -117.055190 },
-        { name: 'Pueblo Plaza',                                  lat: 32.338398, lng: -117.055672 },
-        { name: 'OXXO Avante',                                   lat: 32.341738, lng: -117.057171 },
-        { name: 'Palacio Royal (restaurante)',                   lat: 32.353781, lng: -117.059915 },
-        { name: 'OXXO Lienzo Charro',                            lat: 32.360743, lng: -117.059002 },
-        { name: "OXXO Villa Floresta (frente a McDonald's)",     lat: 32.364380, lng: -117.059861 },
-        { name: 'OXXO Cristal',                                  lat: 32.369290, lng: -117.060404 },
-        { name: 'Pabellón Rosarito',                             lat: 32.377808, lng: -117.059502 },
+        { name: 'René Ortiz C., Pase Corena', lat: 32.3328, lng: -117.056 },
+        { name: 'Boulevard Benito Juárez 10001', lat: 32.3321, lng: -117.0514 },
+        { name: 'Puente Machado', lat: 32.3414, lng: -117.0531 },
+        { name: 'Calimax Villa Floresta', lat: 32.345, lng: -117.0537 },
+        { name: 'Pabellón Rosarito', lat: 32.3769, lng: -117.0606 },
+        { name: 'COBACH Rosarito Norte', lat: 32.401, lng: -117.058 },
+        { name: 'Calimax Rosarito Norte', lat: 32.405, lng: -117.057 },
+        { name: 'El Florido – Rosarito Norte', lat: 32.41, lng: -117.055 },
+        { name: 'Ejido Plan Libertador', lat: 32.418, lng: -117.053 },
+        { name: 'Loma Blanca', lat: 32.425, lng: -117.051 },
+        { name: 'Santa Fe', lat: 32.435, lng: -117.052 },
+        { name: 'Urbi Quinta Versalles', lat: 32.444, lng: -117.054 },
+        { name: 'Lázaro Cárdenas', lat: 32.4495, lng: -117.057 },
+        { name: 'Soriana Súper La Gloria', lat: 32.451, lng: -117.0021 },
+        { name: 'Guardería La Gloria', lat: 32.452, lng: -117.003 },
+        { name: 'Taxis Verdes y Amarillos de Rosarito', lat: 32.4685, lng: -117.018 },
       ],
     },
     {
-      name: 'Blvd. Benito Juárez → Rosarito',
-      description: 'Sentido norte a sur: Pabellón Rosarito → Rosarito Beach Hotel',
+      name: 'Rosarito → 5 y 10 - UABC',
+      description: 'Combi de pasajeros, Playas de Rosarito a UABC vía bulevar 5 y 10',
+      color: '#2f9e6b',
+      vehicleLabel: 'Verde',
+      fares: [
+        { label: 'Rosarito → 5 y 10', price: 17 },
+        { label: 'Rosarito → UABC', price: 24 },
+        { label: '5 y 10 → UABC', price: 15 },
+      ],
       stops: [
-        { name: 'Pabellón Rosarito',                             lat: 32.377808, lng: -117.059502 },
-        { name: 'OXXO Cristal',                                  lat: 32.369290, lng: -117.060404 },
-        { name: "OXXO Villa Floresta (frente a McDonald's)",     lat: 32.364380, lng: -117.059861 },
-        { name: 'OXXO Lienzo Charro',                            lat: 32.360743, lng: -117.059002 },
-        { name: 'Palacio Royal (restaurante)',                   lat: 32.353781, lng: -117.059915 },
-        { name: 'OXXO Avante',                                   lat: 32.341738, lng: -117.057171 },
-        { name: 'Pueblo Plaza',                                  lat: 32.338398, lng: -117.055672 },
-        { name: 'Hotel Festival Plaza',                          lat: 32.337533, lng: -117.055190 },
-        { name: 'Rosarito Beach Hotel',                          lat: 32.336164, lng: -117.054541 },
+        { name: 'Rosarito', lat: 32.3669, lng: -117.0611 },
+        { name: 'Pabellón Rosarito', lat: 32.37685, lng: -117.06055 },
+        { name: 'Plaza Las Alondras', lat: 32.44993, lng: -117.0253 },
+        { name: 'La Gloria', lat: 32.45099, lng: -117.00205 },
+        { name: 'Puente Nodo Morelos', lat: 32.458, lng: -117.015 },
+        { name: 'El Pacífico', lat: 32.462, lng: -117.009 },
+        { name: 'Panamericano', lat: 32.4671, lng: -117.00606 },
+        { name: '5 y 10', lat: 32.5019, lng: -116.9642 },
+        { name: 'Central de Autobuses Tijuana', lat: 32.5148, lng: -117.003 },
+        { name: 'Instituto Tecnológico Tomás Aquino', lat: 32.5258, lng: -116.9695 },
+        { name: 'Calzada del Tecnológico', lat: 32.52866, lng: -116.97834 },
+        { name: 'Plaza Alameda', lat: 32.532, lng: -116.956 },
+        { name: 'Otay (Oeste)', lat: 32.5325, lng: -116.958 },
+        { name: 'Clínica 36 (IMSS)', lat: 32.53336, lng: -116.95253 },
+        { name: 'UABC Otay (Oeste)', lat: 32.53436, lng: -116.95545 },
+        { name: 'Parque Industrial FINSA', lat: 32.535, lng: -116.969 },
       ],
     },
   ],
@@ -75,11 +68,8 @@ module.exports = {
     { plate: 'ABC-123', capacity: 30 },
   ],
 
-  // Asignación por defecto (solo para mostrar el nombre del chofer ligado
-  // a la unidad). La dirección real la elige el chofer en vivo desde
-  // chofer.html, así que esto es solo el punto de partida.
   assignments: [
-    { unitPlate: 'ABC-123', driverName: 'Juan Pérez', routeName: 'Blvd. Benito Juárez → Tijuana' },
+    { unitPlate: 'ABC-123', driverName: 'Juan Pérez', routeName: 'Rosarito → Centro Tijuana' },
   ],
 
 };
