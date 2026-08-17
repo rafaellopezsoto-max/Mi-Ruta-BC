@@ -3,169 +3,269 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Mi Ruta</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<title>Mi Ruta+</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
 <style>
   :root {
-    --ink: #1c2b26;
-    --paper: #f4f6f2;
-    --line: #d7ddd2;
+    --ink: #14201b;
+    --paper: #f6f7f4;
+    --line: #dde3d8;
     --accent: #1f6e4f;
     --accent-dim: #e4efe8;
+    --brand: #0e2f24;
   }
   * { box-sizing: border-box; }
+  html { font-size: 18px; }
   body {
     margin: 0;
     font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
     background: var(--paper);
     color: var(--ink);
+    line-height: 1.4;
   }
   header {
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--line);
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
+    padding: 22px 20px 18px;
+    background: var(--brand);
+    color: white;
   }
-  header h1 { font-size: 18px; margin: 0; font-weight: 700; }
-  header span { font-size: 13px; color: #6b756f; }
-  #map { height: 46vh; width: 100%; }
-  .panel { padding: 16px 20px; }
-  .panel h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.04em; color: #6b756f; margin: 0 0 10px; }
-  select, button {
+  header .brand { display: flex; align-items: baseline; gap: 6px; }
+  header h1 { font-size: 26px; margin: 0; font-weight: 800; letter-spacing: -0.01em; }
+  header .plus { color: #8fe3b8; font-weight: 800; }
+  header span.tagline { font-size: 16px; color: #cfe0d7; display: block; margin-top: 4px; }
+
+  #map { height: 40vh; width: 100%; }
+
+  .panel { padding: 20px; }
+  .panel h2 { font-size: 18px; text-transform: none; letter-spacing: normal; color: var(--ink); margin: 0 0 12px; font-weight: 700; }
+
+  .route-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+  .route-btn {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    min-height: 72px;
+    padding: 14px 16px;
+    font-size: 19px;
+    font-weight: 700;
+    text-align: left;
+    background: white;
+    color: var(--ink);
+    border: 3px solid var(--line);
+    border-radius: 14px;
+    cursor: pointer;
+  }
+  .route-btn.active { border-color: var(--accent); background: var(--accent-dim); }
+  .route-btn .swatch { width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0; border: 2px solid #00000022; }
+
+  select, input, button {
     font: inherit;
-    padding: 10px 12px;
-    border-radius: 8px;
-    border: 1px solid var(--line);
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 2px solid var(--line);
     background: white;
   }
-  select { width: 100%; margin-bottom: 12px; }
+  select { width: 100%; margin-bottom: 12px; min-height: 56px; font-size: 18px; }
   button {
     background: var(--accent);
     color: white;
     border: none;
     cursor: pointer;
     width: 100%;
+    font-weight: 700;
+    font-size: 18px;
+    min-height: 56px;
   }
+
+  .dest-result {
+    background: white;
+    border: 2px solid var(--line);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    font-size: 17px;
+  }
+  .dest-result.hint { color: #5a655f; }
+  .dest-result strong { color: var(--accent); }
+
+  #routeInfo { display: none; padding: 0 20px 20px; }
+  #routeInfo.visible { display: block; }
+  #routeInfo img { width: 100%; max-width: 280px; display: block; margin: 0 auto 12px; }
+  .vehicle-tag {
+    display: inline-block;
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-size: 15px;
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 999px;
+    margin-bottom: 12px;
+  }
+  .fare-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+  .fare-card { background: white; border: 2px solid var(--line); border-radius: 12px; padding: 14px; text-align: center; }
+  .fare-card .price { font-size: 24px; font-weight: 800; color: var(--accent); }
+  .fare-card .label { font-size: 13px; color: #5a655f; margin-top: 4px; }
+
   .unit-card {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: 12px;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    margin-bottom: 8px;
+    gap: 12px;
+    padding: 18px;
+    border: 2px solid var(--line);
+    border-radius: 16px;
+    margin-bottom: 14px;
     background: white;
+    box-shadow: 0 1px 2px rgba(14, 47, 36, 0.04);
   }
-  .unit-card-top { display: flex; justify-content: space-between; align-items: center; }
-  .unit-card .plate { font-weight: 700; }
-  .unit-card .driver { font-size: 13px; color: #6b756f; }
+  .unit-card-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .unit-card .plate { font-weight: 800; font-size: 20px; }
+  .unit-card .driver { font-size: 15px; color: #5a655f; margin-top: 2px; }
   .eta-badge {
     background: var(--accent-dim);
     color: var(--accent);
-    font-weight: 700;
-    padding: 4px 10px;
+    font-weight: 800;
+    padding: 8px 14px;
     border-radius: 999px;
-    font-size: 13px;
+    font-size: 15px;
+    white-space: nowrap;
   }
   .eta-badge.large {
     display: block;
     text-align: center;
-    font-size: 16px;
-    padding: 10px;
-    border-radius: 10px;
-    margin: 12px 0;
+    font-size: 20px;
+    padding: 16px;
+    border-radius: 14px;
+    margin: 14px 0;
   }
   .board-btn {
     width: 100%;
-    padding: 8px;
-    font-size: 13px;
-    background: white;
-    color: var(--accent);
-    border: 1px solid var(--accent);
-    border-radius: 8px;
+    padding: 16px;
+    font-size: 18px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 12px;
     cursor: pointer;
+    font-weight: 700;
+    min-height: 56px;
   }
-  .secondary-btn {
-    width: 100%;
-    padding: 10px;
-    background: white;
-    color: #6b756f;
-    border: 1px solid var(--line);
-  }
-  .board-panel-title { font-weight: 700; margin: 0 0 8px; }
+  .secondary-btn { width: 100%; padding: 16px; background: white; color: #5a655f; border: 2px solid var(--line); }
+  .board-panel-title { font-weight: 800; font-size: 18px; margin: 0 0 12px; }
   .field-label {
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: #6b756f;
+    font-size: 15px;
+    text-transform: none;
+    color: #5a655f;
     display: block;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
+    font-weight: 700;
   }
-  .empty { color: #6b756f; font-size: 14px; }
+  .empty { color: #5a655f; font-size: 17px; }
   .stop-banner {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
+    flex-direction: column;
+    gap: 10px;
     background: white;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 10px 12px;
-    margin-bottom: 12px;
-    font-size: 13px;
+    border: 2px solid var(--line);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 16px;
+    font-size: 16px;
   }
   .stop-banner button {
     width: auto;
-    padding: 6px 10px;
-    font-size: 12px;
+    padding: 10px 16px;
+    font-size: 15px;
+    min-height: 44px;
     background: white;
     color: var(--accent);
-    border: 1px solid var(--accent);
+    border: 2px solid var(--accent);
+    align-self: flex-start;
   }
+  .donate-footer { text-align: center; padding: 16px 20px 32px; font-size: 14px; }
+  .donate-footer a { color: #5a655f; text-decoration: none; border-bottom: 1px dotted #5a655f; }
+  .donate-footer a:hover { color: var(--accent); border-color: var(--accent); }
+  .maplibregl-popup-content { font-family: inherit; font-size: 14px; }
 </style>
 </head>
 <body>
 
 <header>
-  <h1>¿Dónde va mi camión?</h1>
-  <span>Elige tu ruta y ve la unidad acercarse</span>
+  <div class="brand">
+    <h1>🚌 Mi Ruta<span class="plus">+</span></h1>
+  </div>
+  <span class="tagline">Elige tu ruta y ve la unidad acercarse</span>
 </header>
 
 <div class="panel">
-  <select id="routeSelect"></select>
+  <h2>1. Elige tu ruta</h2>
+  <div class="route-list" id="routeList"></div>
+
+  <h2>2. ¿A dónde vas? (opcional)</h2>
+  <div id="destResult" class="dest-result hint">Toca el mapa donde vas a bajarte y te decimos la parada más cercana.</div>
 </div>
+
+<div id="routeInfo"></div>
 
 <div id="map"></div>
 
 <div class="panel">
   <div id="stopBanner" class="stop-banner">
     <span id="stopBannerText">Ubicando tu parada más cercana…</span>
-    <button id="relocateBtn">Reintentar</button>
+    <button id="relocateBtn">🔄 Reintentar</button>
   </div>
   <h2>Unidades en camino</h2>
   <div id="unitsList" class="empty">Selecciona una ruta para ver las unidades activas.</div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<div class="donate-footer">
+  <a href="PEGA_AQUI_TU_LINK_DE_MERCADO_PAGO" target="_blank" rel="noopener">¿Te sirvió? Apoya el proyecto con un donativo</a>
+</div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
 <script>
 const API = '';
 const socket = io();
-const map = L.map('map').setView([32.52, -117.02], 13);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; OpenStreetMap'
-}).addTo(map);
 
+const map = new maplibregl.Map({
+  container: 'map',
+  style: 'https://tiles.openfreemap.org/styles/liberty',
+  center: [-117.02, 32.52],
+  zoom: 12,
+  attributionControl: true,
+});
+map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+let allRoutes = [];
 let stopMarkers = [];
-let unitMarkers = {}; // unitId -> marker
+let unitMarkers = {};
 let currentRouteId = null;
 let currentStops = [];
-let activeUnits = []; // metadata de las unidades activas de la ruta actual
-let passengerStop = null; // parada mas cercana al pasajero, detectada por GPS
+let activeUnits = [];
+let passengerStop = null;
 let passengerMarker = null;
-let boardedUnitId = null; // si el pasajero ya se subio, aqui va el id de la unidad
-let destinationStop = null; // destino elegido despues de abordar
+let boardedUnitId = null;
+let destinationStop = null;
+let destSearchMarker = null;
+
+const sessionId = (() => {
+  let id = sessionStorage.getItem('mrbc_session');
+  if (!id) {
+    id = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    sessionStorage.setItem('mrbc_session', id);
+  }
+  return id;
+})();
+
+function logEvent(type, extra = {}) {
+  fetch(`${API}/api/events`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type, sessionId, view: 'pasajero', ...extra })
+  }).catch(() => {});
+}
+
+logEvent('page_view');
 
 function distanceKm(lat1, lng1, lat2, lng2) {
   const R = 6371;
@@ -195,16 +295,20 @@ function locatePassenger() {
         if (d < bestDist) { bestDist = d; best = stop; }
       });
       passengerStop = best;
+      logEvent('gps_located', { routeId: currentRouteId });
       bannerText.textContent = `Tu parada: ${best.name} (a ${bestDist.toFixed(2)} km de ti)`;
 
-      if (passengerMarker) map.removeLayer(passengerMarker);
-      passengerMarker = L.circleMarker([pos.coords.latitude, pos.coords.longitude], {
-        radius: 7, color: '#2f6fed', fillColor: '#2f6fed', fillOpacity: 0.8
-      }).addTo(map).bindPopup('Tú estás aquí');
+      if (passengerMarker) passengerMarker.remove();
+      const el = document.createElement('div');
+      el.style.cssText = 'width:18px;height:18px;border-radius:50%;background:#2f6fed;border:3px solid white;box-shadow:0 0 0 1px #2f6fed;';
+      passengerMarker = new maplibregl.Marker({ element: el })
+        .setLngLat([pos.coords.longitude, pos.coords.latitude])
+        .setPopup(new maplibregl.Popup().setText('Tú estás aquí'))
+        .addTo(map);
 
       renderUnitsList();
     },
-    (err) => {
+    () => {
       bannerText.textContent = 'No se pudo obtener tu ubicación. Mostrando ETA a la primera parada.';
       passengerStop = null;
       renderUnitsList();
@@ -215,35 +319,113 @@ function locatePassenger() {
 
 document.getElementById('relocateBtn').addEventListener('click', locatePassenger);
 
+function placeDestinationPin(lat, lng) {
+  const resultBox = document.getElementById('destResult');
+  if (!currentStops.length) {
+    resultBox.className = 'dest-result hint';
+    resultBox.textContent = 'Primero elige tu ruta arriba.';
+    return;
+  }
+
+  let best = currentStops[0];
+  let bestDist = Infinity;
+  currentStops.forEach(stop => {
+    const d = distanceKm(lat, lng, stop.lat, stop.lng);
+    if (d < bestDist) { bestDist = d; best = stop; }
+  });
+
+  resultBox.className = 'dest-result';
+  resultBox.innerHTML = `Bájate en: <strong>${best.name}</strong> (a ${bestDist.toFixed(2)} km del punto que marcaste)`;
+
+  if (destSearchMarker) destSearchMarker.remove();
+  const el = document.createElement('div');
+  el.style.cssText = 'width:22px;height:22px;border-radius:50% 50% 50% 0;background:#e05d44;border:3px solid white;transform:rotate(-45deg);box-shadow:0 2px 5px rgba(0,0,0,0.35);';
+  destSearchMarker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+    .setLngLat([lng, lat])
+    .setPopup(new maplibregl.Popup().setText('Tu destino'))
+    .addTo(map);
+}
+
+map.on('click', (e) => {
+  placeDestinationPin(e.lngLat.lat, e.lngLat.lng);
+});
+
+const imgByColor = {
+  'Blanco y Amarillo': 'img/combi-blanco-amarillo.svg',
+  'Verde': 'img/combi-verde.svg',
+};
+
+function renderRouteList() {
+  const list = document.getElementById('routeList');
+  list.innerHTML = allRoutes.map(r => `
+    <button type="button" class="route-btn ${String(r.id) === String(currentRouteId) ? 'active' : ''}" data-route="${r.id}">
+      <span class="swatch" style="background:${r.color || '#ccc'}"></span>
+      <span>${r.name}</span>
+    </button>
+  `).join('');
+  list.querySelectorAll('.route-btn').forEach(btn => {
+    btn.addEventListener('click', () => selectRoute(btn.dataset.route));
+  });
+}
+
+function renderRouteInfo(routeId) {
+  const route = allRoutes.find(r => String(r.id) === String(routeId));
+  const box = document.getElementById('routeInfo');
+  if (!route) { box.className = ''; box.innerHTML = ''; return; }
+
+  const img = imgByColor[route.vehicle_label] || '';
+  const fareCards = (route.fares || [])
+    .map(f => `<div class="fare-card"><div class="price">$${f.price}</div><div class="label">${f.label}</div></div>`)
+    .join('');
+
+  box.className = 'visible';
+  box.innerHTML = `
+    ${img ? `<img src="${img}" alt="${route.vehicle_label}" />` : ''}
+    ${route.vehicle_label ? `<span class="vehicle-tag">${route.vehicle_label}</span>` : ''}
+    ${fareCards ? `<div class="fare-cards">${fareCards}</div>` : ''}
+  `;
+}
+
 async function loadRoutes() {
   const res = await fetch(`${API}/api/routes`);
   const routes = await res.json();
-  const select = document.getElementById('routeSelect');
-  select.innerHTML = routes.map(r => `<option value="${r.id}">${r.name}</option>`).join('');
-  select.addEventListener('change', () => selectRoute(select.value));
+  allRoutes = routes;
+  renderRouteList();
   if (routes.length) selectRoute(routes[0].id);
 }
 
 async function selectRoute(routeId) {
   if (currentRouteId) socket.emit('unsubscribe_route', currentRouteId);
   currentRouteId = routeId;
+  logEvent('route_selected', { routeId });
+  renderRouteList();
+  renderRouteInfo(routeId);
   socket.emit('subscribe_route', routeId);
 
-  stopMarkers.forEach(m => map.removeLayer(m));
+  stopMarkers.forEach(m => m.remove());
   stopMarkers = [];
-  Object.values(unitMarkers).forEach(m => map.removeLayer(m));
+  Object.values(unitMarkers).forEach(m => m.remove());
   unitMarkers = {};
+  if (destSearchMarker) { destSearchMarker.remove(); destSearchMarker = null; }
+  document.getElementById('destResult').className = 'dest-result hint';
+  document.getElementById('destResult').textContent = 'Toca el mapa donde vas a bajarte y te decimos la parada más cercana.';
 
   const stopsRes = await fetch(`${API}/api/routes/${routeId}/stops`);
   currentStops = await stopsRes.json();
+
+  const bounds = new maplibregl.LngLatBounds();
   currentStops.forEach(stop => {
-    const marker = L.circleMarker([stop.lat, stop.lng], { radius: 6, color: '#1f6e4f' })
-      .addTo(map)
-      .bindPopup(stop.name);
+    const el = document.createElement('div');
+    el.style.cssText = 'width:14px;height:14px;border-radius:50%;background:#1f6e4f;border:2px solid white;box-shadow:0 0 0 1px #1f6e4f;';
+    const marker = new maplibregl.Marker({ element: el })
+      .setLngLat([stop.lng, stop.lat])
+      .setPopup(new maplibregl.Popup().setText(stop.name))
+      .addTo(map);
     stopMarkers.push(marker);
+    bounds.extend([stop.lng, stop.lat]);
   });
   if (currentStops.length) {
-    map.fitBounds(currentStops.map(s => [s.lat, s.lng]), { padding: [30, 30] });
+    map.fitBounds(bounds, { padding: 50, duration: 500 });
   }
 
   await loadActiveUnits();
@@ -262,22 +444,17 @@ async function loadActiveUnits() {
 
 function placeUnitMarker(unitId, lat, lng) {
   if (unitMarkers[unitId]) {
-    unitMarkers[unitId].setLatLng([lat, lng]);
+    unitMarkers[unitId].setLngLat([lng, lat]);
   } else {
-    unitMarkers[unitId] = L.marker([lat, lng], {
-      icon: L.divIcon({ className: '', html: '<div style="background:#1f6e4f;width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 0 0 1px #1f6e4f"></div>' })
-    }).addTo(map);
+    const el = document.createElement('div');
+    el.style.cssText = 'width:18px;height:18px;border-radius:50%;background:#1f6e4f;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);';
+    unitMarkers[unitId] = new maplibregl.Marker({ element: el }).setLngLat([lng, lat]).addTo(map);
   }
 }
 
 function etaMinutesTo(lat, lng, destLat, destLng, speedKmh = 18) {
-  const R = 6371;
-  const toRad = d => d * Math.PI / 180;
-  const dLat = toRad(destLat - lat);
-  const dLng = toRad(destLng - lng);
-  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat))*Math.cos(toRad(destLat))*Math.sin(dLng/2)**2;
-  const distanceKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return Math.round((distanceKm / speedKmh) * 60);
+  const d = distanceKm(lat, lng, destLat, destLng);
+  return Math.round((d / speedKmh) * 60);
 }
 
 function renderUnitsList() {
@@ -304,12 +481,12 @@ function renderUnitsList() {
     return `<div class="unit-card" data-unit="${u.unit_id}">
       <div class="unit-card-top">
         <div>
-          <div class="plate">Unidad ${u.plate}</div>
+          <div class="plate">🚐 Unidad ${u.plate}</div>
           <div class="driver">Chofer: ${u.driver_name}</div>
         </div>
         <div class="eta-badge">${etaText}</div>
       </div>
-      <button class="board-btn" onclick="boardUnit(${u.unit_id})">Ya me subí a esta unidad</button>
+      <button class="board-btn" onclick="boardUnit(${u.unit_id})">✅ Ya me subí a esta unidad</button>
     </div>`;
   }).join('');
 }
@@ -317,6 +494,7 @@ function renderUnitsList() {
 function boardUnit(unitId) {
   boardedUnitId = unitId;
   destinationStop = null;
+  logEvent('unit_boarded', { unitId, routeId: currentRouteId });
   renderUnitsList();
 }
 window.boardUnit = boardUnit;
@@ -331,8 +509,6 @@ function renderBoardingPanel(list) {
     return;
   }
 
-  // Solo ofrece como destino las paradas mas adelante en el sentido del
-  // recorrido (despues de donde el pasajero se subio), no las de atras.
   let options = currentStops;
   if (passengerStop) {
     const idx = currentStops.findIndex(s => s.id === passengerStop.id);
@@ -352,13 +528,13 @@ function renderBoardingPanel(list) {
   list.className = '';
   list.innerHTML = `
     <div class="unit-card">
-      <p class="board-panel-title">Vas en la unidad ${unit.plate} · Chofer: ${unit.driver_name}</p>
+      <p class="board-panel-title">🚐 Vas en la unidad ${unit.plate} · Chofer: ${unit.driver_name}</p>
       <label class="field-label" for="destinationSelect">¿A dónde vas?</label>
       <select id="destinationSelect">
         ${options.map(s => `<option value="${s.id}" ${destinationStop.id === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
       </select>
       <div class="eta-badge large">${etaText}</div>
-      <button class="secondary-btn" id="exitBoardBtn">Ya bajé / cancelar</button>
+      <button class="secondary-btn" id="exitBoardBtn">🛑 Ya bajé / cancelar</button>
     </div>
   `;
 
@@ -375,13 +551,13 @@ function renderBoardingPanel(list) {
 
 socket.on('location_update', (data) => {
   const unit = activeUnits.find(u => u.unit_id === data.unitId);
-  if (!unit) return; // no es de la ruta que estamos viendo
+  if (!unit) return;
   unit.position = { lat: data.lat, lng: data.lng };
   placeUnitMarker(data.unitId, data.lat, data.lng);
   renderUnitsList();
 });
 
-loadRoutes();
+map.on('load', loadRoutes);
 </script>
 </body>
 </html>
