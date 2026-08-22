@@ -2,8 +2,8 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mi Ruta+ | Rastreo de Transporte Público</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>MiRuta+ | Pasajero</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- MapLibre GL JS -->
@@ -11,252 +11,221 @@
   <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
   <!-- Socket.IO -->
   <script src="/socket.io/socket.io.js"></script>
+  <style>
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
 </head>
-<body class="bg-slate-100 font-sans h-screen w-screen overflow-hidden flex flex-col md:flex-row">
+<body class="bg-slate-950 font-sans h-screen w-screen flex justify-center items-center overflow-hidden">
 
-  <!-- Panel Lateral / Bottom Sheet en Móviles -->
-  <aside class="z-10 w-full md:w-96 bg-white border-r border-slate-200 shadow-xl flex flex-col h-2/5 md:h-full relative">
+  <!-- Contenedor Estilo App Móvil -->
+  <div class="w-full max-w-md h-full md:h-[92vh] bg-slate-900 md:rounded-3xl shadow-2xl flex flex-col overflow-hidden relative border border-slate-800">
     
-    <!-- Encabezado -->
-    <div class="p-4 bg-slate-900 text-white flex items-center justify-between shadow">
-      <div class="flex items-center gap-2">
-        <span class="text-2xl">🚌</span>
-        <div>
-          <h1 class="font-bold text-lg leading-tight">Mi Ruta+</h1>
-          <p class="text-xs text-slate-400">Rosarito & Tijuana, B.C.</p>
-        </div>
+    <!-- Mapa de Fondo -->
+    <div id="map" class="absolute inset-0 z-0 h-full w-full"></div>
+
+    <!-- Capa Superior: Búsqueda y Estado -->
+    <div class="relative z-10 p-4 space-y-3 bg-gradient-to-b from-slate-950/90 via-slate-900/60 to-transparent pt-6">
+      <div class="flex justify-between items-center text-xs font-bold text-slate-300">
+        <span>ROSARITO - TIJUANA</span>
+        <span class="flex items-center gap-1.5 text-emerald-400">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          EN VIVO
+        </span>
       </div>
-      <span id="socket-status" class="w-3 h-3 bg-red-500 rounded-full" title="Desconectado"></span>
+
+      <div class="bg-slate-900/90 backdrop-blur-md rounded-2xl p-2 shadow-xl border border-slate-700/50 flex items-center gap-2">
+        <input id="search-input" type="text" placeholder="¿A dónde vas?" class="w-full bg-transparent px-3 py-2 text-sm text-white placeholder-slate-400 outline-none" />
+        <button onclick="searchDestination()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow-lg shadow-blue-500/30">
+          Buscar
+        </button>
+      </div>
     </div>
 
-    <!-- Pestañas de Navegación -->
-    <div class="flex border-b border-slate-200 bg-slate-50">
-      <button id="tab-routes-btn" onclick="switchTab('routes')" class="flex-1 py-3 text-xs font-semibold text-blue-600 border-b-2 border-blue-600">
-        RUTAS ACTIVAS
-      </button>
-      <button id="tab-planner-btn" onclick="switchTab('planner')" class="flex-1 py-3 text-xs font-semibold text-slate-500 hover:text-slate-700">
-        PLANEAR VIAJE
-      </button>
-    </div>
+    <div class="flex-1"></div>
 
-    <!-- Contenido del Panel -->
-    <div class="flex-1 overflow-y-auto p-4 space-y-4">
+    <!-- Capa Inferior: Panel de Control e Información -->
+    <div class="relative z-10 bg-slate-900/95 backdrop-blur-xl rounded-t-3xl border-t border-slate-800 p-4 space-y-4 shadow-2xl max-h-[60vh] overflow-y-auto no-scrollbar">
       
-      <!-- Pestaña 1: Rutas -->
-      <div id="tab-routes" class="space-y-3">
-        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Selecciona una Ruta</label>
-        <div id="routes-list" class="space-y-2">
-          <p class="text-xs text-slate-400">Cargando rutas disponibles...</p>
-        </div>
+      <!-- Botones Rápidos -->
+      <div class="grid grid-cols-4 gap-2 text-center text-[10px] font-bold text-slate-400">
+        <button onclick="recenterMap()" class="bg-slate-800/80 p-2.5 rounded-2xl border border-slate-700/50 flex flex-col items-center gap-1 hover:text-white transition">
+          <span class="text-base">🎯</span> GPS EN VIVO
+        </button>
+        <button class="bg-slate-800/80 p-2.5 rounded-2xl border border-slate-700/50 flex flex-col items-center gap-1 hover:text-white transition">
+          <span class="text-base">🗺️</span> DOS RUTAS
+        </button>
+        <button class="bg-slate-800/80 p-2.5 rounded-2xl border border-slate-700/50 flex flex-col items-center gap-1 hover:text-white transition">
+          <span class="text-base">⏱️</span> TIEMPO REAL
+        </button>
+        <button onclick="shareTrip()" class="bg-slate-800/80 p-2.5 rounded-2xl border border-slate-700/50 flex flex-col items-center gap-1 hover:text-white transition">
+          <span class="text-base">📲</span> COMPARTIR
+        </button>
       </div>
 
-      <!-- Pestaña 2: Planeador de Viaje -->
-      <div id="tab-planner" class="space-y-3 hidden">
-        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">¿A dónde quieres ir?</label>
-        <div class="space-y-2">
-          <input id="plan-origin" type="text" placeholder="Origen (ej. Centro)" class="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
-          <input id="plan-dest" type="text" placeholder="Destino (ej. Bulevar)" class="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
-          <button onclick="findTrip()" class="w-full py-2.5 bg-blue-600 text-white font-semibold text-xs rounded-lg hover:bg-blue-700 transition">
-            Buscar Mejor Ruta
-          </button>
-        </div>
-        <div id="planner-results" class="space-y-2 pt-2"></div>
-      </div>
-
-    </div>
-
-    <!-- Tarjeta de Estado de la Unidad Seleccionada -->
-    <div id="unit-info-card" class="p-4 border-t border-slate-200 bg-blue-50 hidden">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
-            🚌
+      <!-- Sección de Rutas -->
+      <div class="space-y-2">
+        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Rutas de la Red</p>
+        <div class="grid grid-cols-2 gap-3" id="routes-container">
+          <!-- Ruta 1 -->
+          <div onclick="selectRoute(1)" class="bg-slate-800/50 p-3 rounded-2xl border border-slate-700/50 cursor-pointer hover:border-amber-500 transition">
+            <div class="flex justify-between items-center mb-1">
+              <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+              <span class="text-[9px] font-bold text-slate-400">VER</span>
+            </div>
+            <h4 class="text-xs font-bold text-white">Centro Tijuana</h4>
+            <p class="text-[10px] text-slate-400">Blanco y amarillo</p>
           </div>
+          <!-- Ruta 2 -->
+          <div onclick="selectRoute(2)" class="bg-blue-900/20 p-3 rounded-2xl border border-blue-500/50 cursor-pointer">
+            <div class="flex justify-between items-center mb-1">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+              <span class="text-[9px] font-bold text-blue-400">ACTIVA</span>
+            </div>
+            <h4 class="text-xs font-bold text-white">5 y 10 - UABC</h4>
+            <p class="text-[10px] text-slate-400">Verde</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tarjeta de Unidad Cercana -->
+      <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3">
+        <div class="flex justify-between items-start">
           <div>
-            <h3 id="card-unit-title" class="text-sm font-bold text-slate-800">Unidad 1</h3>
-            <p id="card-unit-sub" class="text-xs text-slate-500">Ruta 1 • Transmisión en vivo</p>
+            <h3 class="text-sm font-bold text-white" id="active-unit-name">Unidad ABC-123</h3>
+            <p class="text-xs text-slate-400" id="active-driver-name">Chofer: Juan Pérez</p>
           </div>
+          <span class="text-[10px] font-bold bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30">
+            ● EN VIVO
+          </span>
         </div>
-        <span id="card-unit-time" class="text-[10px] bg-blue-100 text-blue-700 font-semibold px-2 py-1 rounded">Justo ahora</span>
+
+        <div class="flex items-baseline gap-1">
+          <span class="text-3xl font-black text-white" id="eta-display">7</span>
+          <span class="text-xs font-semibold text-slate-400">min a tu parada</span>
+        </div>
+
+        <button onclick="requestStop()" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-600/30 transition">
+          🙋‍♂️ Solicitar Parada
+        </button>
       </div>
+
     </div>
 
-  </aside>
-
-  <!-- Contenedor del Mapa -->
-  <main class="flex-1 relative h-3/5 md:h-full">
-    <div id="map" class="w-full h-full"></div>
-  </main>
+  </div>
 
   <script>
     const socket = io();
     let map = null;
-    let selectedRouteId = null;
-    const unitMarkers = {};
-    const stopMarkers = [];
+    let unitMarker = null;
+    const defaultCenter = [-117.0382, 32.5149]; // Coordenadas Rosarito - Tijuana
 
-    // Inicializar aplicación
     document.addEventListener('DOMContentLoaded', () => {
       initMap();
       setupSocketEvents();
-      fetchRoutes();
     });
 
-    // Configurar Mapa con MapLibre GL
     function initMap() {
       map = new maplibregl.Map({
         container: 'map',
         style: 'https://demotiles.maplibre.org/style.json',
-        center: [-117.0382, 32.5149], // Coordenadas Rosarito/Tijuana
-        zoom: 12
+        center: defaultCenter,
+        zoom: 12.5
       });
 
-      map.addControl(new maplibregl.NavigationControl(), 'top-right');
+      map.on('load', () => {
+        // Dibujar Trazo de la Ruta en el Mapa
+        map.addSource('route-line', {
+          'type': 'geojson',
+          'data': {
+            'type': 'Feature',
+            'geometry': {
+              'type': 'LineString',
+              'coordinates': [
+                [-117.0550, 32.3650],
+                [-117.0450, 32.4000],
+                [-117.0382, 32.4500],
+                [-117.0300, 32.5020],
+                [-117.0200, 32.5149]
+              ]
+            }
+          }
+        });
+
+        map.addLayer({
+          'id': 'route-line-layer',
+          'type': 'line',
+          'source': 'route-line',
+          'layout': { 'line-join': 'round', 'line-cap': 'round' },
+          'paint': {
+            'line-color': '#2563eb',
+            'line-width': 5
+          }
+        });
+      });
     }
 
-    // Configurar WebSocket
     function setupSocketEvents() {
-      const statusIndicator = document.getElementById('socket-status');
-
-      socket.on('connect', () => {
-        statusIndicator.className = 'w-3 h-3 bg-emerald-500 rounded-full';
-        statusIndicator.title = 'Conectado en tiempo real';
-      });
-
-      socket.on('disconnect', () => {
-        statusIndicator.className = 'w-3 h-3 bg-red-500 rounded-full';
-        statusIndicator.title = 'Desconectado';
-      });
-
-      // Recibir posición en tiempo real de los camiones
-      socket.on('location_update', ({ unitId, lat, lng, updatedAt }) => {
-        updateUnitMarker(unitId, lat, lng);
-        document.getElementById('unit-info-card').classList.remove('hidden');
-        document.getElementById('card-unit-title').innerText = `Unidad ${unitId}`;
-        document.getElementById('card-unit-time').innerText = new Date(updatedAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      socket.on('unit_updated', (data) => {
+        const { lat, lng, unitId } = data;
+        updateUnitMarker(lat, lng, unitId);
       });
     }
 
-    // Cargar lista de rutas desde la API
-    async function fetchRoutes() {
-      try {
-        const res = await fetch('/api/routes');
-        const routes = await res.json();
-        const container = document.getElementById('routes-list');
-        container.innerHTML = '';
-
-        routes.forEach(route => {
-          const btn = document.createElement('button');
-          btn.className = 'w-full text-left p-3 rounded-lg border border-slate-200 hover:border-blue-500 bg-white transition flex items-center justify-between group';
-          btn.onclick = () => selectRoute(route.id, route.color);
-          btn.innerHTML = `
-            <div>
-              <div class="flex items-center gap-2">
-                <span class="w-3 h-3 rounded-full" style="background-color: ${route.color || '#2563eb'}"></span>
-                <span class="font-bold text-xs text-slate-800">${route.name}</span>
-              </div>
-              <p class="text-[11px] text-slate-500 mt-1">${route.description || 'Sin descripción'}</p>
-            </div>
-            <span class="text-xs text-blue-600 opacity-0 group-hover:opacity-100 font-semibold transition">Ver →</span>
-          `;
-          container.appendChild(btn);
-        });
-      } catch (err) {
-        console.error('Error al cargar rutas:', err);
-      }
-    }
-
-    // Seleccionar ruta y suscribir
-    async function selectRoute(routeId, color) {
-      if (selectedRouteId) {
-        socket.emit('unsubscribe_route', selectedRouteId);
-      }
-
-      selectedRouteId = routeId;
-      socket.emit('subscribe_route', routeId);
-
-      // Cargar paradas de la ruta
-      fetchStops(routeId);
-    }
-
-    // Renderizar paradas en el mapa
-    async function fetchStops(routeId) {
-      try {
-        const res = await fetch(`/api/routes/${routeId}/stops`);
-        const stops = await res.json();
-
-        // Limpiar paradas anteriores
-        stopMarkers.forEach(m => m.remove());
-        stopMarkers.length = 0;
-
-        if (stops.length === 0) return;
-
-        const bounds = new maplibregl.LngLatBounds();
-
-        stops.forEach(stop => {
-          const el = document.createElement('div');
-          el.className = 'w-4 h-4 bg-white border-2 border-slate-800 rounded-full shadow-md flex items-center justify-center';
-          
-          const marker = new maplibregl.Marker({ element: el })
-            .setLngLat([stop.lng, stop.lat])
-            .setPopup(new maplibregl.Popup().setHTML(`<b class="text-xs">${stop.name}</b>`))
-            .addTo(map);
-
-          stopMarkers.push(marker);
-          bounds.extend([stop.lng, stop.lat]);
-        });
-
-        map.fitBounds(bounds, { padding: 50 });
-
-      } catch (err) {
-        console.error('Error al cargar paradas:', err);
-      }
-    }
-
-    // Crear/actualizar marcador del camión en movimiento
-    function updateUnitMarker(unitId, lat, lng) {
-      if (unitMarkers[unitId]) {
-        unitMarkers[unitId].setLngLat([lng, lat]);
+    function updateUnitMarker(lat, lng, unitId) {
+      if (unitMarker) {
+        unitMarker.setLngLat([lng, lat]);
       } else {
         const el = document.createElement('div');
-        el.className = 'bg-blue-600 text-white text-[11px] font-bold px-2 py-1 rounded-full shadow-lg border-2 border-white flex items-center gap-1 animate-bounce';
-        el.innerHTML = `🚌 U${unitId}`;
+        el.className = 'w-9 h-9 bg-blue-600 border-2 border-white rounded-full shadow-2xl flex items-center justify-center text-sm';
+        el.innerHTML = '🚌';
 
-        unitMarkers[unitId] = new maplibregl.Marker({ element: el })
+        unitMarker = new maplibregl.Marker({ element: el })
           .setLngLat([lng, lat])
           .addTo(map);
       }
     }
 
-    // Cambiar Pestañas
-    function switchTab(tab) {
-      document.getElementById('tab-routes').classList.toggle('hidden', tab !== 'routes');
-      document.getElementById('tab-planner').classList.toggle('hidden', tab !== 'planner');
-
-      document.getElementById('tab-routes-btn').className = tab === 'routes' 
-        ? 'flex-1 py-3 text-xs font-semibold text-blue-600 border-b-2 border-blue-600'
-        : 'flex-1 py-3 text-xs font-semibold text-slate-500 hover:text-slate-700';
-
-      document.getElementById('tab-planner-btn').className = tab === 'planner'
-        ? 'flex-1 py-3 text-xs font-semibold text-blue-600 border-b-2 border-blue-600'
-        : 'flex-1 py-3 text-xs font-semibold text-slate-500 hover:text-slate-700';
+    function recenterMap() {
+      map.flyTo({ center: defaultCenter, zoom: 13, essential: true });
     }
 
-    // Algoritmo de Búsqueda de Viaje Simulado
-    async function findTrip() {
-      const resultsContainer = document.getElementById('planner-results');
-      resultsContainer.innerHTML = '<p class="text-xs text-slate-400">Calculando la mejor combinación...</p>';
+    function selectRoute(routeId) {
+      recenterMap();
+      socket.emit('subscribe_route', routeId);
+    }
 
-      setTimeout(() => {
-        resultsContainer.innerHTML = `
-          <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-lg space-y-1">
-            <span class="text-[10px] font-bold bg-emerald-200 text-emerald-800 px-1.5 py-0.5 rounded">Ruta Recomendada</span>
-            <h4 class="font-bold text-xs text-slate-800">Ruta 1 - Centro / Bulevar</h4>
-            <p class="text-[11px] text-slate-600">Aborda en <b>Parada Centro</b> → Baja en <b>Parada Plaza</b></p>
-            <p class="text-[10px] text-slate-400">Tiempo aprox. de trayecto: 12 min</p>
-          </div>
-        `;
-      }, 600);
+    function requestStop() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition((pos) => {
+          socket.emit('passenger_waiting', {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude
+          });
+          alert('¡Parada solicitada! El chofer ha sido notificado.');
+        });
+      } else {
+        alert('Por favor activa la ubicación de tu dispositivo.');
+      }
+    }
+
+    function shareTrip() {
+      if (navigator.share) {
+        navigator.share({
+          title: 'MiRuta+',
+          text: 'Sigue el trayecto de mi unidad en tiempo real:',
+          url: window.location.href
+        });
+      } else {
+        alert('Enlace copiado al portapapeles');
+      }
+    }
+
+    function searchDestination() {
+      const query = document.getElementById('search-input').value;
+      if (query) {
+        alert(`Buscando ruta hacia: ${query}`);
+      }
     }
   </script>
 </body>
